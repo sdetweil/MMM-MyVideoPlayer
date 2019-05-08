@@ -28,6 +28,8 @@ Module.register("MMM-MyVideoPlayer", {
 	player:null,
 	videos:null,
 	posters:null,
+  videoButtons:null,
+  currentVideo:-1,
 
 
 	requiresversion: "2.1.0",
@@ -52,7 +54,21 @@ Module.register("MMM-MyVideoPlayer", {
 	getPosters: function () {
 		this.sendSocketNotification("GET_POSTERS");
 	},
-
+  // wait for content to be present, then press to start playing 
+  startAutoPlay: function(){
+    if(!self.videoButtons)
+      self.videoButtons= document.getElementsByClassName("button")
+    if(self.videoButtons.length >0){
+      var y=self.currentVideo+1;
+      if(y>=self.videoButtons.length)
+        y=0;
+      self.currentVideo=y
+      self.videoButtons[y].click()
+    }
+    else 
+      setTimeout(() => { self.startAutoPlay()}, 2000)
+  },
+  //
 	socketNotificationReceived: function (notification, payload) {
 		Log.log("notification received="+notification);
 		if (notification === "BUTTON_PRESSED") {
@@ -72,6 +88,8 @@ Module.register("MMM-MyVideoPlayer", {
 			     Log.log("posters files="+this.posters);
 			     self.buildPosterHash(this.posters);
 			     self.updateDom(self.config.initialLoadDelay);
+           if(this.config.autoPlay)  // if autoPlay
+              this.startAutoPlay()   // start routine to click
 		     }
 		     else
 			Log.error("===>no video icon filenames returned, check the postersDir config entry");
@@ -120,9 +138,11 @@ Module.register("MMM-MyVideoPlayer", {
 				video.height = self.config.playerSize.height;
 				video.id = "player";
 				video.poster = "modules/" + this.name + "/" + self.config.playerBackground;
-				video.addEventListener("ended", function() {
-					video.load();
-					video.controls = false;
+				video.addEventListener("ended", () => {
+            video.load();
+            video.controls = false;
+          if(self.config.autoPlay)
+            this.startAutoPlay() 
 				});
 				self.player = video;
 			wrapper.appendChild(video);
